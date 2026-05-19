@@ -412,17 +412,16 @@ def delete_message(
     return {"msg": "메시지가 삭제되었습니다"}
 
 
-# ── 로컬 정적 파일 서빙 (Vercel 환경 제외) ────────────────────────
+# ── 정적 파일 서빙 (로컬 + Vercel 공통) ──────────────────────────
 # StaticFiles mount("/")는 Starlette 1.x에서 POST도 가로채므로
 # GET 캐치올 라우트로 대체 (특정 API GET 라우트가 먼저 등록되어 우선순위 보장)
-if not os.environ.get("VERCEL"):
-    _static = os.path.join(os.path.dirname(os.path.dirname(__file__)), "public")
-    if os.path.exists(_static):
-        from starlette.responses import FileResponse as _FileResponse
+_static = os.path.join(os.path.dirname(os.path.dirname(__file__)), "public")
+if os.path.exists(_static):
+    from starlette.responses import FileResponse as _FileResponse
 
-        @app.get("/{full_path:path}", include_in_schema=False)
-        async def _serve_static(full_path: str = ""):
-            target = os.path.join(_static, full_path) if full_path else os.path.join(_static, "index.html")
-            if os.path.isfile(target):
-                return _FileResponse(target)
-            return _FileResponse(os.path.join(_static, "index.html"))
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def _serve_static(full_path: str = ""):
+        target = os.path.join(_static, full_path) if full_path else os.path.join(_static, "index.html")
+        if os.path.isfile(target):
+            return _FileResponse(target)
+        return _FileResponse(os.path.join(_static, "index.html"))
