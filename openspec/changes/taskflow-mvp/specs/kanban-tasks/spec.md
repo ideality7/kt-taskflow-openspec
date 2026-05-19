@@ -34,10 +34,16 @@
 
 ### Requirement: 태스크 제목 수정
 팀 소속 사용자는 태스크 제목을 수정할 수 있어야 한다(SHALL).
+- PUT /tasks/{id}에 status와 title이 동시에 포함된 경우 두 필드 모두 반영해야 한다(MUST).
+- 전달된 필드만 업데이트하고 나머지는 기존 값을 유지해야 한다(MUST).
 
 #### Scenario: 제목 수정 성공
 - **WHEN** PUT /tasks/{id} {title: "수정된 제목"} 요청
 - **THEN** HTTP 200, {id, title: "수정된 제목", status, team_id, creator_id} 반환
+
+#### Scenario: status와 title 동시 변경
+- **WHEN** PUT /tasks/{id} {title: "수정된 제목", status: "DOING"} 요청
+- **THEN** HTTP 200, {id, title: "수정된 제목", status: "DOING", team_id, creator_id} 반환
 
 ### Requirement: 태스크 단건 조회
 팀 소속 사용자는 특정 태스크를 ID로 조회할 수 있어야 한다(SHALL).
@@ -51,12 +57,18 @@
 - **THEN** HTTP 404, {code: "NOT_FOUND", msg: "태스크를 찾을 수 없습니다"} 반환
 
 ### Requirement: 태스크 삭제
-팀 소속 사용자는 태스크를 삭제할 수 있어야 한다(SHALL).
+팀 소속 사용자는 creator_id 여부와 관계없이 팀 내 모든 태스크를 삭제할 수 있어야 한다(SHALL).
+- MVP 단순화 원칙: 작성자 본인 확인 없이 팀 소속만 검증한다(MUST).
+- 팀 비소속 사용자의 삭제 시도는 403을 반환해야 한다(MUST).
 
 #### Scenario: 정상 삭제
-- **WHEN** DELETE /tasks/{id} 요청
+- **WHEN** 팀 소속 사용자가 DELETE /tasks/{id} 요청
 - **THEN** HTTP 200, {msg: "태스크가 삭제되었습니다"} 반환
 
 #### Scenario: 존재하지 않는 태스크 삭제
 - **WHEN** 존재하지 않는 ID로 DELETE /tasks/{id} 요청
 - **THEN** HTTP 404, {code: "NOT_FOUND", msg: "태스크를 찾을 수 없습니다"} 반환
+
+#### Scenario: 팀 비소속 사용자 삭제 시도
+- **WHEN** 해당 팀에 속하지 않은 사용자가 DELETE /tasks/{id} 요청
+- **THEN** HTTP 403, {code: "FORBIDDEN", msg: "팀 멤버만 삭제할 수 있습니다"} 반환

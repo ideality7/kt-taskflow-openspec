@@ -1,12 +1,20 @@
 ## ADDED Requirements
 
 ### Requirement: 팀 생성
-인증된 사용자는 팀을 생성하고, 시스템은 유일한 초대코드(XXXX-XXXX 형식)를 자동 발급해야 한다(SHALL).
+인증된 사용자는 팀을 생성하고, 시스템은 유일한 초대코드를 자동 발급해야 한다(SHALL).
 - 생성자는 자동으로 해당 팀의 owner가 된다(MUST).
+- 초대코드 형식: 대문자 영문(A-Z) + 숫자(2-9) 4자 + 하이픈 + 4자, 총 9자(XXXX-XXXX)(MUST).
+- 혼동 문자(I, O, 0, 1)는 초대코드에 사용하지 않아야 한다(MUST).
+- 초대코드는 대소문자 구분 없이 처리해야 한다(SHALL). 입력값을 대문자로 정규화한다.
+- 초대코드는 DB 내 유일해야 하며, 충돌 시 재생성한다(MUST).
 
 #### Scenario: 정상 팀 생성
 - **WHEN** POST /teams {name: "개발팀"} 요청
-- **THEN** HTTP 201, {id, name, invite_code: "ABCD-1234", owner_id} 반환
+- **THEN** HTTP 201, {id, name, invite_code: "ABCD-2345", owner_id} 반환 (I/O/0/1 미포함)
+
+#### Scenario: 소문자 초대코드 입력 허용
+- **WHEN** POST /teams/join {invite_code: "abcd-2345"} 요청 (소문자)
+- **THEN** 대문자 "ABCD-2345"로 정규화되어 팀 합류 성공
 
 #### Scenario: 팀명 미입력
 - **WHEN** POST /teams {name: ""} 요청

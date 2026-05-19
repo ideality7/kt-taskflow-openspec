@@ -45,3 +45,18 @@
 #### Scenario: 정상 로그아웃
 - **WHEN** 유효한 JWT로 POST /auth/logout 요청
 - **THEN** HTTP 200, {msg: "로그아웃 되었습니다"} 반환
+
+### Requirement: 프론트엔드 라우트 보호
+클라이언트는 인증이 필요한 페이지 접근 시 JWT 유무를 확인하고, 없으면 로그인 페이지로 리다이렉트해야 한다(SHALL).
+- 보호 대상 페이지: teams.html, kanban.html, chat.html(MUST).
+- 각 페이지 최상단 JS에서 localStorage의 JWT를 확인한다(MUST).
+- JWT가 없으면 즉시 index.html(로그인)로 리다이렉트해야 한다(MUST).
+- API 호출 결과 401을 받은 경우에도 index.html로 리다이렉트해야 한다(MUST).
+
+#### Scenario: 미인증 상태로 보호 페이지 직접 접근
+- **WHEN** localStorage에 JWT 없이 /kanban.html 직접 URL 입력
+- **THEN** 즉시 /index.html로 리다이렉트, 칸반 화면 노출 안 됨
+
+#### Scenario: 만료 토큰으로 API 호출
+- **WHEN** 만료된 JWT로 GET /teams 호출 시 서버가 401 반환
+- **THEN** 클라이언트가 localStorage JWT 삭제 후 /index.html로 리다이렉트
