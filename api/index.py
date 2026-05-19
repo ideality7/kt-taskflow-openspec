@@ -9,8 +9,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+import bcrypt as _bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -25,8 +25,15 @@ ALGORITHM = "HS256"
 INVITE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # I, O, 0, 1 제외
 VALID_STATUSES = {"TODO", "DOING", "DONE"}
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer = HTTPBearer()
+
+
+def _hash_pw(password: str) -> str:
+    return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt()).decode()
+
+
+def _verify_pw(password: str, hashed: str) -> bool:
+    return _bcrypt.checkpw(password.encode(), hashed.encode())
 
 app = FastAPI(title="TaskFlow API")
 
@@ -130,7 +137,7 @@ def signup(req: AuthReq, db: Session = Depends(get_db)):
             status_code=409,
             detail={"code": "EMAIL_EXISTS", "msg": "이미 사용 중인 이메일입니다"},
         )
-    user = User(email=req.email, password_hash=pwd_context.hash(req.password))
+    user = User(email=req.email, password_hash=_hash_pw(req.password))
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -140,7 +147,7 @@ def signup(req: AuthReq, db: Session = Depends(get_db)):
 @app.post("/auth/login")
 def login(req: AuthReq, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == req.email).first()
-    if not user or not pwd_context.verify(req.password, user.password_hash):
+    if not user or not _verify_pw(req.password, user.password_hash):
         raise HTTPException(
             status_code=401,
             detail={"code": "INVALID_CREDENTIALS", "msg": "이메일 또는 비밀번호가 올바르지 않습니다"},
@@ -406,7 +413,16 @@ def delete_message(
 
 
 # ── 로컬 정적 파일 서빙 (Vercel 환경 제외) ────────────────────────
+# StaticFiles mount("/")는 Starlette 1.x에서 POST도 가로채므로
+# GET 캐치올 라우트로 대체 (특정 API GET 라우트가 먼저 등록되어 우선순위 보장)
 if not os.environ.get("VERCEL"):
     _static = os.path.join(os.path.dirname(os.path.dirname(__file__)), "public")
     if os.path.exists(_static):
-        app.mount("/", StaticFiles(directory=_static, html=True), name="static")
+        from starlette.responses import FileResponse as _FileResponse
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def _serve_static(full_path: str = ""):
+            target = os.path.join(_static, full_path) if full_path else os.path.join(_static, "index.html")
+            if os.path.isfile(target):
+                return _FileResponse(target)
+            return _FileResponse(os.path.join(_static, "index.html"))
