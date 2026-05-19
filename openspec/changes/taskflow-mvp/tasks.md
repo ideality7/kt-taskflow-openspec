@@ -48,6 +48,6 @@
 ## 7. 배포 설정
 
 - [x] 7.1 vercel.json 작성 — Python 런타임, FastAPI 엔트리포인트 설정
-- [ ] 7.2 Vercel 환경변수 설정 — DATABASE_URL(Neon Pooled), JWT_SECRET_KEY
-- [ ] 7.3 Neon DB 연결 확인 및 테이블 초기화 (배포 후 /docs에서 API 동작 검증)
-- [ ] 7.4 vercel deploy --prod 실행 및 5분 이내 배포 완료 확인
+- [x] 7.2 Vercel 환경변수 설정 — DATABASE_URL(Neon Pooled), JWT_SECRET_KEY
+- [x] 7.3 Neon DB 연결 확인 및 테이블 초기화 (배포 후 /docs에서 API 동작 검증)
+- [x] 7.4 vercel deploy --prod 실행 및 5분 이내 배포 완료 확인
