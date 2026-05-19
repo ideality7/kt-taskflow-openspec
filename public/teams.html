@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskFlow — 팀 선택</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+  <!-- 헤더 -->
+  <header class="bg-teal-600 text-white px-6 py-4 flex items-center justify-between shadow">
+    <span class="text-xl font-bold">TaskFlow</span>
+    <button id="logout-btn" class="text-teal-100 hover:text-white text-sm">로그아웃</button>
+  </header>
+
+  <main class="max-w-2xl mx-auto px-4 py-8">
+    <h2 class="text-lg font-bold text-slate-700 mb-4">내 팀</h2>
+
+    <div id="err" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"></div>
+    <div id="team-list" class="space-y-3 mb-8"></div>
+
+    <!-- 팀 만들기 -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5 mb-4">
+      <h3 class="font-semibold text-slate-700 mb-3">팀 만들기</h3>
+      <div class="flex gap-2">
+        <input id="team-name" type="text" placeholder="팀 이름"
+          class="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+        <button id="create-btn"
+          class="bg-teal-600 text-white rounded-lg px-4 py-2 text-sm hover:bg-teal-700 font-medium transition">
+          만들기
+        </button>
+      </div>
+    </div>
+
+    <!-- 초대코드로 합류 -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+      <h3 class="font-semibold text-slate-700 mb-3">초대코드로 합류</h3>
+      <div class="flex gap-2">
+        <input id="invite-code" type="text" placeholder="XXXX-XXXX"
+          class="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 uppercase">
+        <button id="join-btn"
+          class="bg-orange-500 text-white rounded-lg px-4 py-2 text-sm hover:bg-orange-600 font-medium transition">
+          합류
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { api, getToken, getUser, clearAuth, setTeam, requireAuth } from './api.js';
+    if (!requireAuth()) throw new Error('redirect');
+
+    const errEl = document.getElementById('err');
+    const showErr = msg => { errEl.textContent = msg; errEl.classList.remove('hidden'); };
+    const hideErr = () => errEl.classList.add('hidden');
+
+    async function loadTeams() {
+      const teams = await api('GET', '/teams');
+      if (!teams) return;
+      const list = document.getElementById('team-list');
+      if (teams.length === 0) {
+        list.innerHTML = '<p class="text-slate-400 text-sm">아직 소속된 팀이 없습니다.</p>';
+        return;
+      }
+      list.innerHTML = teams.map(t => `
+        <div class="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between hover:border-teal-400 cursor-pointer transition"
+             data-team='${JSON.stringify(t)}'>
+          <div>
+            <p class="font-semibold text-slate-800">${t.name}</p>
+            <p class="text-xs text-slate-400 mt-0.5">초대코드: <span class="font-mono">${t.invite_code}</span></p>
+          </div>
+          <span class="text-teal-600 text-sm font-medium">입장 →</span>
+        </div>
+      `).join('');
+
+      list.querySelectorAll('[data-team]').forEach(el => {
+        el.onclick = () => {
+          setTeam(JSON.parse(el.dataset.team));
+          location.href = '/kanban.html';
+        };
+      });
+    }
+
+    document.getElementById('logout-btn').onclick = () => { clearAuth(); location.href = '/index.html'; };
+
+    document.getElementById('create-btn').onclick = async () => {
+      hideErr();
+      const name = document.getElementById('team-name').value.trim();
+      if (!name) { showErr('팀 이름을 입력해주세요.'); return; }
+      try {
+        await api('POST', '/teams', { name });
+        document.getElementById('team-name').value = '';
+        await loadTeams();
+      } catch (e) { showErr(e.message); }
+    };
+
+    document.getElementById('join-btn').onclick = async () => {
+      hideErr();
+      const code = document.getElementById('invite-code').value.trim();
+      if (!code) { showErr('초대코드를 입력해주세요.'); return; }
+      try {
+        await api('POST', '/teams/join', { invite_code: code });
+        document.getElementById('invite-code').value = '';
+        await loadTeams();
+      } catch (e) { showErr(e.message); }
+    };
+
+    await loadTeams();
+  </script>
+</body>
+</html>

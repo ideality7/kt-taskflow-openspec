@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskFlow — 채팅</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col">
+  <!-- 헤더 -->
+  <header class="bg-teal-600 text-white px-6 py-3 flex items-center justify-between shadow">
+    <div class="flex items-center gap-3">
+      <span class="text-lg font-bold">TaskFlow</span>
+      <span id="team-name" class="text-teal-100 text-sm"></span>
+    </div>
+    <div class="flex items-center gap-4">
+      <a href="/kanban.html" class="text-teal-100 hover:text-white text-sm font-medium">📋 칸반</a>
+      <a href="/teams.html" class="text-teal-100 hover:text-white text-sm">팀 변경</a>
+      <button id="logout-btn" class="text-teal-100 hover:text-white text-sm">로그아웃</button>
+    </div>
+  </header>
+
+  <!-- 채팅 영역 -->
+  <main class="flex-1 flex flex-col max-w-2xl mx-auto w-full px-4 py-4 min-h-0">
+    <div id="msg-list"
+      class="flex-1 overflow-y-auto bg-white rounded-xl border border-slate-200 p-4 space-y-3 mb-3"
+      style="min-height: 0; max-height: calc(100vh - 180px);">
+    </div>
+
+    <!-- 입력창 -->
+    <div class="flex gap-2">
+      <input id="msg-input" type="text" placeholder="메시지를 입력하세요 (최대 1000자)"
+        class="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+      <button id="send-btn"
+        class="bg-teal-600 text-white rounded-xl px-5 py-2.5 text-sm hover:bg-teal-700 font-medium transition">
+        전송
+      </button>
+    </div>
+    <p class="text-xs text-slate-400 mt-1 text-right">5초마다 자동 새로고침</p>
+  </main>
+
+  <script type="module">
+    import { api, getTeam, getUser, clearAuth, requireAuth, requireTeam } from './api.js';
+    if (!requireAuth() || !requireTeam()) throw new Error('redirect');
+
+    const team = getTeam();
+    const me = getUser();
+    document.getElementById('team-name').textContent = team.name;
+    document.getElementById('logout-btn').onclick = () => { clearAuth(); location.href = '/index.html'; };
+
+    let lastSince = null;
+
+    function fmtTime(iso) {
+      const d = new Date(iso);
+      return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function fmtDate(iso) {
+      const d = new Date(iso);
+      return d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
+    }
+
+    function appendMessages(msgs) {
+      const list = document.getElementById('msg-list');
+      let lastDate = null;
+      msgs.forEach(m => {
+        const date = fmtDate(m.created_at);
+        if (date !== lastDate) {
+          lastDate = date;
+          const sep = document.createElement('div');
+          sep.className = 'text-center text-xs text-slate-400 py-1';
+          sep.textContent = date;
+          list.appendChild(sep);
+        }
+
+        const isMine = m.user_id === me?.id;
+        const el = document.createElement('div');
+        el.className = `flex flex-col ${isMine ? 'items-end' : 'items-start'}`;
+        el.innerHTML = `
+          <span class="text-xs text-slate-400 mb-0.5 px-1">${m.email || '사용자'} · ${fmtTime(m.created_at)}</span>
+          <div class="max-w-xs px-3 py-2 rounded-xl text-sm leading-snug ${isMine ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-800'}">
+            ${m.content}
+          </div>
+        `;
+        list.appendChild(el);
+        if (m.created_at > (lastSince || '')) lastSince = m.created_at;
+      });
+      list.scrollTop = list.scrollHeight;
+    }
+
+    async function loadAll() {
+      const msgs = await api('GET', `/teams/${team.id}/messages`);
+      if (!msgs) return;
+      // 이메일 표시를 위해 멤버 목록 로드
+      const members = await api('GET', `/teams/${team.id}/members`);
+      const emailMap = {};
+      (members || []).forEach(u => { emailMap[u.id] = u.email; });
+      msgs.forEach(m => { m.email = emailMap[m.user_id] || `사용자${m.user_id}`; });
+      document.getElementById('msg-list').innerHTML = '';
+      lastSince = null;
+      appendMessages(msgs);
+    }
+
+    async function pollNew() {
+      if (!lastSince) return;
+      const msgs = await api('GET', `/teams/${team.id}/messages?since=${encodeURIComponent(lastSince)}`);
+      if (!msgs || msgs.length === 0) return;
+      const members = await api('GET', `/teams/${team.id}/members`);
+      const emailMap = {};
+      (members || []).forEach(u => { emailMap[u.id] = u.email; });
+      msgs.forEach(m => { m.email = emailMap[m.user_id] || `사용자${m.user_id}`; });
+      appendMessages(msgs);
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('msg-input');
+      const content = input.value.trim();
+      if (!content) return;
+      input.value = '';
+      try {
+        await api('POST', `/teams/${team.id}/messages`, { content });
+        await pollNew();
+      } catch (e) { alert(e.message); }
+    }
+
+    document.getElementById('send-btn').onclick = sendMessage;
+    document.getElementById('msg-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+
+    await loadAll();
+    setInterval(pollNew, 5000);
+  </script>
+</body>
+</html>

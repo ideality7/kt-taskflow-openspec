@@ -1,0 +1,5 @@
+.env
+taskflow.db
+__pycache__/
+*.pyc
+.vercel/

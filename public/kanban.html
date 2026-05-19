@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskFlow — 칸반</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .task-card { cursor: grab; }
+    .task-card:active { cursor: grabbing; }
+    .col-drop.drag-over { outline: 2px dashed #14b8a6; background: #f0fdfa; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col">
+  <!-- 헤더 -->
+  <header class="bg-teal-600 text-white px-6 py-3 flex items-center justify-between shadow">
+    <div class="flex items-center gap-3">
+      <span class="text-lg font-bold">TaskFlow</span>
+      <span id="team-name" class="text-teal-100 text-sm"></span>
+    </div>
+    <div class="flex items-center gap-4">
+      <a href="/chat.html" class="text-teal-100 hover:text-white text-sm font-medium">💬 채팅</a>
+      <a href="/teams.html" class="text-teal-100 hover:text-white text-sm">팀 변경</a>
+      <button id="logout-btn" class="text-teal-100 hover:text-white text-sm">로그아웃</button>
+    </div>
+  </header>
+
+  <!-- 칸반 보드 -->
+  <main class="flex-1 p-6 overflow-auto">
+    <div class="flex gap-4 h-full min-h-0" style="min-width: 600px;">
+      <!-- TODO 컬럼 -->
+      <div class="flex-1 flex flex-col">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-bold text-slate-700">📋 TODO</h2>
+          <button class="add-btn text-teal-600 hover:text-teal-800 text-xl font-bold" data-status="TODO">+</button>
+        </div>
+        <div id="col-TODO" class="col-drop flex-1 bg-slate-100 rounded-xl p-3 space-y-2 overflow-y-auto" data-status="TODO"></div>
+        <div id="input-TODO" class="hidden mt-2">
+          <input type="text" placeholder="태스크 제목"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 mb-1">
+          <div class="flex gap-1">
+            <button class="confirm-add flex-1 bg-teal-600 text-white rounded-lg py-1 text-sm hover:bg-teal-700" data-status="TODO">추가</button>
+            <button class="cancel-add flex-1 bg-slate-200 text-slate-600 rounded-lg py-1 text-sm hover:bg-slate-300" data-status="TODO">취소</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DOING 컬럼 -->
+      <div class="flex-1 flex flex-col">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-bold text-orange-600">⚡ DOING</h2>
+          <button class="add-btn text-orange-500 hover:text-orange-700 text-xl font-bold" data-status="DOING">+</button>
+        </div>
+        <div id="col-DOING" class="col-drop flex-1 bg-orange-50 rounded-xl p-3 space-y-2 overflow-y-auto" data-status="DOING"></div>
+        <div id="input-DOING" class="hidden mt-2">
+          <input type="text" placeholder="태스크 제목"
+            class="w-full border border-orange-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 mb-1">
+          <div class="flex gap-1">
+            <button class="confirm-add flex-1 bg-orange-500 text-white rounded-lg py-1 text-sm hover:bg-orange-600" data-status="DOING">추가</button>
+            <button class="cancel-add flex-1 bg-slate-200 text-slate-600 rounded-lg py-1 text-sm hover:bg-slate-300" data-status="DOING">취소</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DONE 컬럼 -->
+      <div class="flex-1 flex flex-col">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-bold text-emerald-700">✅ DONE</h2>
+          <button class="add-btn text-emerald-600 hover:text-emerald-800 text-xl font-bold" data-status="DONE">+</button>
+        </div>
+        <div id="col-DONE" class="col-drop flex-1 bg-emerald-50 rounded-xl p-3 space-y-2 overflow-y-auto" data-status="DONE"></div>
+        <div id="input-DONE" class="hidden mt-2">
+          <input type="text" placeholder="태스크 제목"
+            class="w-full border border-emerald-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-1">
+          <div class="flex gap-1">
+            <button class="confirm-add flex-1 bg-emerald-600 text-white rounded-lg py-1 text-sm hover:bg-emerald-700" data-status="DONE">추가</button>
+            <button class="cancel-add flex-1 bg-slate-200 text-slate-600 rounded-lg py-1 text-sm hover:bg-slate-300" data-status="DONE">취소</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { api, getTeam, clearAuth, requireAuth, requireTeam } from './api.js';
+    if (!requireAuth() || !requireTeam()) throw new Error('redirect');
+
+    const team = getTeam();
+    document.getElementById('team-name').textContent = team.name;
+    document.getElementById('logout-btn').onclick = () => { clearAuth(); location.href = '/index.html'; };
+
+    function makeCard(task) {
+      const card = document.createElement('div');
+      card.className = 'task-card bg-white rounded-lg p-3 shadow-sm border border-slate-100 flex items-start justify-between gap-2';
+      card.draggable = true;
+      card.dataset.id = task.id;
+      card.innerHTML = `
+        <span class="text-sm text-slate-700 flex-1 leading-snug">${task.title}</span>
+        <button class="del-btn text-slate-300 hover:text-red-400 text-lg leading-none flex-shrink-0" title="삭제">×</button>
+      `;
+      card.querySelector('.del-btn').onclick = async () => {
+        if (!confirm('태스크를 삭제할까요?')) return;
+        await api('DELETE', `/tasks/${task.id}`);
+        loadTasks();
+      };
+      card.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('taskId', task.id);
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      return card;
+    }
+
+    async function loadTasks() {
+      const tasks = await api('GET', `/teams/${team.id}/tasks`);
+      if (!tasks) return;
+      ['TODO', 'DOING', 'DONE'].forEach(s => {
+        const col = document.getElementById(`col-${s}`);
+        col.innerHTML = '';
+        tasks.filter(t => t.status === s).forEach(t => col.appendChild(makeCard(t)));
+      });
+    }
+
+    // 드래그 & 드롭
+    document.querySelectorAll('.col-drop').forEach(col => {
+      col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drag-over'); });
+      col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+      col.addEventListener('drop', async e => {
+        e.preventDefault();
+        col.classList.remove('drag-over');
+        const taskId = e.dataTransfer.getData('taskId');
+        const status = col.dataset.status;
+        await api('PUT', `/tasks/${taskId}`, { status });
+        loadTasks();
+      });
+    });
+
+    // + 버튼
+    document.querySelectorAll('.add-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.getElementById(`input-${btn.dataset.status}`).classList.remove('hidden');
+        btn.classList.add('hidden');
+      };
+    });
+
+    document.querySelectorAll('.cancel-add').forEach(btn => {
+      btn.onclick = () => {
+        const s = btn.dataset.status;
+        document.getElementById(`input-${s}`).classList.add('hidden');
+        document.querySelector(`.add-btn[data-status="${s}"]`).classList.remove('hidden');
+      };
+    });
+
+    document.querySelectorAll('.confirm-add').forEach(btn => {
+      btn.onclick = async () => {
+        const s = btn.dataset.status;
+        const input = document.querySelector(`#input-${s} input`);
+        const title = input.value.trim();
+        if (!title) return;
+        await api('POST', `/teams/${team.id}/tasks`, { title });
+        if (s !== 'TODO') await api('PUT', '/tasks/' + (await api('GET', `/teams/${team.id}/tasks`)).at(-1)?.id, { status: s });
+        input.value = '';
+        document.getElementById(`input-${s}`).classList.add('hidden');
+        document.querySelector(`.add-btn[data-status="${s}"]`).classList.remove('hidden');
+        loadTasks();
+      };
+    });
+
+    await loadTasks();
+  </script>
+</body>
+</html>

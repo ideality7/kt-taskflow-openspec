@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskFlow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
+    <h1 class="text-3xl font-bold text-teal-600 text-center mb-1">TaskFlow</h1>
+    <p class="text-slate-400 text-center text-sm mb-6">칸반 + 채팅 팀 협업 도구</p>
+
+    <div id="err" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"></div>
+
+    <!-- 로그인 폼 -->
+    <div id="login-section">
+      <input id="email" type="email" placeholder="이메일"
+        class="w-full border border-slate-200 rounded-lg px-4 py-2.5 mb-3 focus:outline-none focus:ring-2 focus:ring-teal-400 text-sm">
+      <input id="password" type="password" placeholder="비밀번호"
+        class="w-full border border-slate-200 rounded-lg px-4 py-2.5 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-400 text-sm">
+      <button id="login-btn"
+        class="w-full bg-teal-600 text-white rounded-lg px-4 py-2.5 mb-3 hover:bg-teal-700 font-medium text-sm transition">
+        로그인
+      </button>
+      <button id="to-signup" class="w-full text-teal-600 text-sm hover:underline">
+        계정이 없으신가요? 회원가입
+      </button>
+    </div>
+
+    <!-- 회원가입 폼 -->
+    <div id="signup-section" class="hidden">
+      <input id="su-email" type="email" placeholder="이메일"
+        class="w-full border border-slate-200 rounded-lg px-4 py-2.5 mb-3 focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm">
+      <input id="su-password" type="password" placeholder="비밀번호"
+        class="w-full border border-slate-200 rounded-lg px-4 py-2.5 mb-4 focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm">
+      <button id="signup-btn"
+        class="w-full bg-orange-500 text-white rounded-lg px-4 py-2.5 mb-3 hover:bg-orange-600 font-medium text-sm transition">
+        회원가입
+      </button>
+      <button id="to-login" class="w-full text-slate-500 text-sm hover:underline">
+        로그인으로 돌아가기
+      </button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { api, setAuth, getToken } from './api.js';
+    if (getToken()) location.href = '/teams.html';
+
+    const err = document.getElementById('err');
+    const showErr = msg => { err.textContent = msg; err.classList.remove('hidden'); };
+    const hideErr = () => err.classList.add('hidden');
+
+    document.getElementById('to-signup').onclick = () => {
+      hideErr();
+      document.getElementById('login-section').classList.add('hidden');
+      document.getElementById('signup-section').classList.remove('hidden');
+    };
+    document.getElementById('to-login').onclick = () => {
+      hideErr();
+      document.getElementById('signup-section').classList.add('hidden');
+      document.getElementById('login-section').classList.remove('hidden');
+    };
+
+    document.getElementById('login-btn').onclick = async () => {
+      hideErr();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      try {
+        const data = await api('POST', '/auth/login', { email, password });
+        setAuth(data.token, data.user);
+        location.href = '/teams.html';
+      } catch (e) { showErr(e.message); }
+    };
+
+    document.getElementById('signup-btn').onclick = async () => {
+      hideErr();
+      const email = document.getElementById('su-email').value;
+      const password = document.getElementById('su-password').value;
+      try {
+        const data = await api('POST', '/auth/signup', { email, password });
+        setAuth(data.token, data.user);
+        location.href = '/teams.html';
+      } catch (e) { showErr(e.message); }
+    };
+
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      const signupVisible = !document.getElementById('signup-section').classList.contains('hidden');
+      signupVisible ? document.getElementById('signup-btn').click()
+                    : document.getElementById('login-btn').click();
+    });
+  </script>
+</body>
+</html>

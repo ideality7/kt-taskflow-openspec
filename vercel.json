@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/auth/:path*",     "destination": "/api/index.py" },
+    { "source": "/teams/:path*",    "destination": "/api/index.py" },
+    { "source": "/tasks/:path*",    "destination": "/api/index.py" },
+    { "source": "/messages/:path*", "destination": "/api/index.py" }
+  ]
+}
